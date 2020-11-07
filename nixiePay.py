@@ -5,10 +5,12 @@ import kanboard
 import json
 import sys
 import re
+from googleSheet import Sheet
 
 secret = {}
 with open('credentials.json') as f:
     secret = json.load(f)
+sheet = Sheet()
 
 PROJECT_ID = '1' 
 
@@ -137,6 +139,8 @@ def getUsers() -> Dict[str, Dict]:
     for user in allUsers:
         usersById[user['id']] = user
     return usersById
+
+def writeVideosToSheet(videos: Dict[str, Video])
 
 def main():
     columnTitlesToPay = sys.argv[1:]

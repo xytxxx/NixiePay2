@@ -6,6 +6,8 @@ from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 import json
+import re
+
 secret = {}
 with open('credentials.json') as f:
     secret = json.load(f)
@@ -47,7 +49,7 @@ class Sheet:
                 'title': title
             }
         }
-        newSheet = self.service.newSheet().create(
+        newSheet = self.service.spreadsheets().create(
             body=newSheet,
             fields='spreadsheetId'
         ).execute()
@@ -59,9 +61,93 @@ class Sheet:
             sheetId=TEMPLATE_SHEET_ID, 
             body=copy_sheet_to_another_spreadsheet_request_body
         ).execute()
+        self.service.spreadsheets().batchUpdate(
+            spreadsheetId=newSheet.get('spreadsheetId'), 
+            body={
+                'requests': [
+                    {
+                        'deleteSheet': {
+                            'sheetId': 0
+                        }
+                    }
+                ]
+            }
+        ).execute()
+        allSheets = self.service.spreadsheets().get(
+            spreadsheetId=newSheet.get('spreadsheetId')
+        ).execute()
+        newSheet['id'] = allSheets['sheets'][0]['properties']['sheetId']
+        self.service.spreadsheets().batchUpdate(
+            spreadsheetId=newSheet.get('spreadsheetId'), 
+            body={
+                'requests': [
+                    {
+                        'updateSheetProperties': {
+                            'properties': {
+                                'sheetId': newSheet.get('id'),
+                                'title': 'Table'
+                            },
+                            'fields': 'title'
+                        }
+                    }
+                ]
+            }
+        ).execute()
         return newSheet
     
-    def writeValues(self, range):
+    def writeValues(self, sheet, range, values):
+        body = {
+            'range': range,
+            'values': values,
+            'majorDimension':"ROWS"
+        }
+        result = self.service.spreadsheets().values().update(
+            spreadsheetId=sheet.get('spreadsheetId'), 
+            valueInputOption='RAW',
+            body=body,
+            range=range
+        ).execute()
+        return result
+
+    def writeNotes(self, sheet, range, rowsOfNotes):            
+        m = re.match(r'(?P<col1>[A-Z]+)(?P<row1>[0-9]+):(?P<col2>[A-Z]+)(?P<row2>[0-9]+)', range)
+        dic = m.groupdict()
+        row1 = int(dic['row1']) - 1
+        row2 = int(dic['row2']) + 1
+        col1 = ord(dic['col1']) - ord('A') 
+        col2 = ord(dic['col2']) - ord('A') + 1
+        gridRange = {
+            'sheetId': sheet.get('id'),
+            'startRowIndex': row1,
+            'endRowIndex': row2,
+            'startColumnIndex': col1,
+            'endColumnIndex': col2
+        }        
+        noteRows = []
+        for notes in rowsOfNotes:
+            row = []
+            for note in notes:
+                row.append({
+                    'note': note
+                })
+            noteRows.append({
+                'values': row
+            })
+        result = self.service.spreadsheets().batchUpdate(
+            spreadsheetId=sheet.get('spreadsheetId'), 
+            body={
+                'requests': [
+                    {
+                        'updateCells': {
+                            'range': gridRange,
+                            'rows': noteRows,
+                            'fields': 'note'
+                        }
+                    }
+                ]
+            }
+        ).execute()
+        return result
 
 
 
