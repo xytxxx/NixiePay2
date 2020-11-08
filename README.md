@@ -1,7 +1,7 @@
 # Script to calculate payments for each member in NixieSubs
 
 ## Usage
-1. Get your credentials.json from
+1. Get your credentials.json from step 1 
 [here](https://developers.google.com/sheets/api/quickstart/python)
 
 2. Add your Kanboard API tokens and the id of sheet template as shown: 
