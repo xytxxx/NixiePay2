@@ -2,7 +2,7 @@
 
 ## Usage
 1. Get your credentials.json from step 1 
-[here](https://developers.google.com/sheets/api/quickstart/python)
+[here](https://developers.google.com/sheets/api/quickstart/python). (Prject Name: any thing you like, Then choose "Desktop App")
 
 2. Add your Kanboard API tokens and the id of sheet template as shown: 
 ```lang-json
