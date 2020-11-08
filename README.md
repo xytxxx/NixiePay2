@@ -18,6 +18,25 @@
 The spreadsheet_id and sheet_id for template is fixed. You can just copy from
 here (as long as you have access to the Nixiesubs folder on GDrive).
 
+Your credentials.json should look like 
+```lang-json
+{
+    "installed": {
+        "client_id": "xxxxxxxxxxxxxxxxxx",
+        "project_id": "xxxxxxxxxxxxxxxxx",
+        ..........
+    },
+    "kanboard": {
+        "username": "xxxx",
+        "api": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    },
+    "sheet": {
+        "spreadsheet_id": "1B7dGAgOtPej9vddkTleEvkzIHX1M4OqHwZU-W424jwo",
+        "sheet_id": 0
+    }
+}
+```
+
 3. `pip install -r pip-requirements.txt`
 
 4. `python nixiePay.py [Column names to calculate]`
