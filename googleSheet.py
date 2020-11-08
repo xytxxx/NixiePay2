@@ -95,6 +95,21 @@ class Sheet:
         ).execute()
         return newSheet
     
+    @staticmethod
+    def rangeToGrid(range: str): 
+        m = re.match(r'(?P<col1>[A-Z]+)(?P<row1>[0-9]+):(?P<col2>[A-Z]+)(?P<row2>[0-9]+)', range)
+        dic = m.groupdict()
+        row1 = int(dic['row1']) - 1
+        row2 = int(dic['row2']) 
+        col1 = ord(dic['col1']) - ord('A') 
+        col2 = ord(dic['col2']) - ord('A') + 1
+        return {
+            'startRowIndex': row1,
+            'endRowIndex': row2,
+            'startColumnIndex': col1,
+            'endColumnIndex': col2
+        }        
+
     def writeValues(self, sheet, range, values):
         body = {
             'range': range,
@@ -103,26 +118,15 @@ class Sheet:
         }
         result = self.service.spreadsheets().values().update(
             spreadsheetId=sheet.get('spreadsheetId'), 
-            valueInputOption='RAW',
+            valueInputOption='USER_ENTERED',
             body=body,
             range=range
         ).execute()
         return result
 
-    def writeNotes(self, sheet, range, rowsOfNotes):            
-        m = re.match(r'(?P<col1>[A-Z]+)(?P<row1>[0-9]+):(?P<col2>[A-Z]+)(?P<row2>[0-9]+)', range)
-        dic = m.groupdict()
-        row1 = int(dic['row1']) - 1
-        row2 = int(dic['row2']) + 1
-        col1 = ord(dic['col1']) - ord('A') 
-        col2 = ord(dic['col2']) - ord('A') + 1
-        gridRange = {
-            'sheetId': sheet.get('id'),
-            'startRowIndex': row1,
-            'endRowIndex': row2,
-            'startColumnIndex': col1,
-            'endColumnIndex': col2
-        }        
+    def writeNotes(self, sheet, range: str, rowsOfNotes):            
+        gridRange = self.rangeToGrid(range)
+        gridRange['sheetId'] = sheet.get('id')
         noteRows = []
         for notes in rowsOfNotes:
             row = []

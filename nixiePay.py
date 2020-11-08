@@ -1,4 +1,5 @@
 from re import sub
+from sys import setrecursionlimit
 from typing import Dict, List, Set, Tuple
 from collections import defaultdict
 import kanboard
@@ -10,9 +11,20 @@ from googleSheet import Sheet
 secret = {}
 with open('credentials.json') as f:
     secret = json.load(f)
-sheet = Sheet()
+st = Sheet()
 
 PROJECT_ID = '1' 
+NO_PROOFREAD_USER_IDS= ('0', '236', '22')
+JOB_TYPE_TO_RATE = {
+    'D': 'I3',
+    'DD': 'I4',
+    'P': 'I5',
+    'S': 'I6',
+}
+STARTING_ROW = 1
+CNY_PAYMENT_CELLS = 'D2:E'
+USD_PAYMENT_CELLS = 'F2:G'
+VIDEO_CELLS = 'A2:B'
 
 # read boards
 kb = kanboard.Client("https://kb.nixiesubs.xyz/jsonrpc.php", secret['kanboard']['username'], secret['kanboard']['api'])
@@ -25,6 +37,13 @@ class Video:
         self.title = kwargs.get('title')
         self.segments = kwargs.get('segments')
         self.totalTime = kwargs.get('totalTime') 
+
+def secondsToTime(seconds):
+    return '{hour}:{minute}:{sec}'.format(
+        hour=str((seconds//3600)).zfill(2),
+        minute=str(((seconds%3600)//60)).zfill(2), 
+        sec=str((seconds%60)).zfill(2)
+    )
 
 def getChannelIds() -> Dict[str, str]:
     allChannels = kb.getAllSwimlanes(project_id=PROJECT_ID)
@@ -84,11 +103,12 @@ def getAllCompletedVideos(columnNamesToPay: List[str]) -> Dict[str, Video]:
                 ),
                 segments=segments,
                 totalTime=totalTime,
+                createdAt=int(task['date_creation'])
             )
     return allVideos
 
 def getWorkDoneForEachUser(videos: Dict[str, Video]) -> Dict[str, Dict]:
-    usersToWork = defaultdict(lambda: {'D': [], 'P': [], 'S': []}) 
+    usersToWork = defaultdict(lambda: {'D': [], 'P': [], 'S': [], 'DD':[]}) 
     for taskId, video in videos.items():
         subtasks = kb.getAllSubtasks(task_id=taskId)
         subtasks = sorted(subtasks, key=lambda subtask: int(subtask['position']))
@@ -97,15 +117,15 @@ def getWorkDoneForEachUser(videos: Dict[str, Video]) -> Dict[str, Dict]:
         numS = 0
         D = []
         P = []
-        S = []
+        S = []            
         for subtask in subtasks:
-            if subtask['title'].strip() == 'D':
+            if subtask['title'].strip().startswith('D'):
                 numD += 1
                 D.append(subtask)
-            elif subtask['title'].strip() == 'P':
+            elif subtask['title'].strip().startswith('P'):
                 numP += 1
                 P.append(subtask)
-            elif subtask['title'].strip() == 'S':
+            elif subtask['title'].strip().startswith('S'):
                 numS += 1
                 S.append(subtask)
             else:
@@ -119,18 +139,22 @@ def getWorkDoneForEachUser(videos: Dict[str, Video]) -> Dict[str, Dict]:
             (numD, 'D', D), (numP, 'P', P), (numS, 'S', S)
         ]:
             for i in range(numOfSubtaskType):
-                time = video.segments[i]
+                time = video.segments[i] if numD != 1 else sum(video.segments)
                 subtask = subtasks[i]
-                if subtask['user_id'] in ('0', '236', '22'):
-                    subtask['name'] = '无人认领（无校对）'
+                if subtask['user_id'] in NO_PROOFREAD_USER_IDS:
+                    subtask['name'] = '无人认领（无校对'
                     subtask['user_id'] = '_'
                 if not subtask.get('user_id'):
                     print('There are segments without assignee: {}'.format(video.title))
+                # change to no-proof read if it should
+                if subtaskType == 'D':
+                    correspondingP = P[i] if numP == numD else P[0]
+                    if correspondingP['user_id'] in NO_PROOFREAD_USER_IDS:
+                        subtaskType = 'DD'
                 usersToWork[subtask['user_id']][subtaskType].append({
                     'taskId': taskId,
                     'time': time if numOfSubtaskType != 1 else video.totalTime
                 })
-                usersToWork[subtask['user_id']]['name'] = subtask['name']
     return usersToWork
 
 def getUsers() -> Dict[str, Dict]:
@@ -140,7 +164,59 @@ def getUsers() -> Dict[str, Dict]:
         usersById[user['id']] = user
     return usersById
 
-def writeVideosToSheet(videos: Dict[str, Video])
+def writeVideosToSheet(sheet, videos: Dict[str, Video]):
+    range = VIDEO_CELLS + str(len(videos)+STARTING_ROW)
+    rows = []
+    for taskId, video in videos.items():
+        urlForVideo = 'https://kb.nixiesubs.xyz/?controller=TaskViewController&action=show&task_id={id}&project_id={p_id}'.format(id=taskId, p_id=PROJECT_ID)
+        rows.append([
+            '=HYPERLINK("{}","{}")'.format(urlForVideo, video.title.replace('"', '')),
+            secondsToTime(video.totalTime)
+        ])
+    st.writeValues(sheet, range, rows)
+
+def writePaymentsToSheet(sheet, videos, userIdsToWork, usersById, cnyUserIds):
+    def getPaymentFormulaAndNotesForUserId(id):
+        worksDone = userIdsToWork[id]
+        formulas = []
+        notes = ''
+        jobTypeToWords = {
+            'D': '你翻译了',
+            'DD': '你翻译了(无校对)',
+            'P': '你校对了',
+            'S': '你打了轴',
+        }
+        for jobType in ('D', 'DD', 'P', 'S'):
+            notes += jobTypeToWords[jobType] + '\n'
+            totalTime = 0    
+            for job in worksDone.get(jobType):
+                title = videos.get(job['taskId']).title
+                notes += '{title}, {time}\n'.format(title=title, time=secondsToTime(job['time']))
+                totalTime += job['time']
+            notes += '总计: ' + secondsToTime(totalTime) + '\n===========================\n'
+            formulas.append('({rate} * {timeInMinutes})'.format(
+                rate=JOB_TYPE_TO_RATE[jobType],
+                timeInMinutes = round(totalTime / 60, 2)
+            ))
+        return '= ' + ' + '.join(formulas), notes
+
+    def helper(rangeStartsAt, userIds):
+        range = rangeStartsAt + str(len(userIds) + STARTING_ROW)
+        rows = []
+        notes = []
+        for userId in userIds:
+            formula, note = getPaymentFormulaAndNotesForUserId(userId)
+            userName = usersById[userId]['name'] if userId != '_' else '无人认领（无校对'
+            if userName == '':
+                userName = usersById[userId]['username']
+            rows.append([userName, formula]) 
+            notes.append(['', note])
+        st.writeValues(sheet, range, rows)
+        st.writeNotes(sheet, range, notes)
+    usdUserIds = set(userIdsToWork.keys()) - cnyUserIds
+    cnyUserIds = cnyUserIds.intersection(userIdsToWork.keys())
+    helper(CNY_PAYMENT_CELLS, cnyUserIds)
+    helper(USD_PAYMENT_CELLS, usdUserIds)
 
 def main():
     columnTitlesToPay = sys.argv[1:]
@@ -148,18 +224,9 @@ def main():
     videos = getAllCompletedVideos(columnTitlesToPay)
     userIdsToWork = getWorkDoneForEachUser(videos)
     usersById = getUsers()
-
-
-
-    with open('cny.json', 'w+') as f:
-        json.dump(list(cnyUserIds), f)
-    with open('videos.json', 'w+') as f:
-        json.dump(videos, f)
-    with open('work.json', 'w+') as f:
-        json.dump(dict(userIdsToWork), f)
-    with open('users.json', 'w+') as f:
-        json.dump(usersById, f)
-    
+    sheet = st.createNewSheetFromTemplate('LMGNS'+','.join(columnTitlesToPay))
+    writeVideosToSheet(sheet, videos)
+    writePaymentsToSheet(sheet, videos, userIdsToWork, usersById, cnyUserIds)
 
 if __name__ == '__main__':
     main()
