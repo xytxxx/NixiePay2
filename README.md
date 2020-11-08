@@ -18,7 +18,7 @@
 }
 ```
 You can get `ROOT KEY` from admin (布莱克）. 
-The spreadsheet_id and sheet_id for template is fixed. You can just copy from
+The spreadsheet_id and sheet_id for [template](https://docs.google.com/spreadsheets/d/1B7dGAgOtPej9vddkTleEvkzIHX1M4OqHwZU-W424jwo/edit?usp=sharing) is fixed. You can just copy from
 here (as long as you have access to the Nixiesubs folder on GDrive).
 
 Your credentials.json should look like 
@@ -42,7 +42,10 @@ Your credentials.json should look like
 
 3. Run `pip install -r pip-requirements.txt` in terminal 
 
-4. Run `python nixiePay.py [Column names to calculate, seperated by space]`. For example, `python nixiePay.py 2020-10 2020-09`
+4. Run `python nixiePay.py [Column names to calculate, seperated by space]`. For
+   example, `python nixiePay.py 2020-10 2020-09`.
 
-5. Go to your GDrive home page, you should see the newly created spreadsheet
+5. Wait till finish
+
+6. Go to your GDrive home page, you should see the newly created spreadsheet
    "LMGNSxxxx", move it to the Nixiesubs folder.
