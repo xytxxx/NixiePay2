@@ -220,11 +220,16 @@ def writePaymentsToSheet(sheet, videos, userIdsToWork, usersById, cnyUserIds):
 
 def main():
     columnTitlesToPay = sys.argv[1:]
+    print('getting user ids')
     cnyUserIds = getCNYUserIds()
+    print('getting videos')
     videos = getAllCompletedVideos(columnTitlesToPay)
+    print('calculating')
     userIdsToWork = getWorkDoneForEachUser(videos)
     usersById = getUsers()
+    print('creating sheets')
     sheet = st.createNewSheetFromTemplate('LMGNS'+','.join(columnTitlesToPay))
+    print('writing to sheet')
     writeVideosToSheet(sheet, videos)
     writePaymentsToSheet(sheet, videos, userIdsToWork, usersById, cnyUserIds)
 
