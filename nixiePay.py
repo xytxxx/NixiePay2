@@ -141,11 +141,11 @@ def getWorkDoneForEachUser(videos: Dict[str, Video]) -> Dict[str, Dict]:
             for i in range(numOfSubtaskType):
                 time = video.segments[i] if numD != 1 else sum(video.segments)
                 subtask = subtasks[i]
-                if subtask['user_id'] in NO_PROOFREAD_USER_IDS:
+                if subtask['user_id'] in NO_PROOFREAD_USER_IDS or not subtask['user_id']:
                     subtask['name'] = '无人认领（无校对'
                     subtask['user_id'] = '_'
-                if not subtask.get('user_id'):
-                    print('There are segments without assignee: {}'.format(video.title))
+                # if not subtask.get('user_id'):
+                #     print('There are segments without assignee: {}'.format(video.title))
                 # change to no-proof read if it should
                 if subtaskType == 'D':
                     correspondingP = P[i] if numP == numD else P[0]
