@@ -2,3 +2,6 @@
 *.excel
 *.pickle
 __pycache__/*
+.DS_Store
+dist/*
+build/*

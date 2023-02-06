@@ -1,3 +1,4 @@
+import os
 from re import sub
 from sys import setrecursionlimit
 from typing import Dict, List, Set, Tuple
@@ -219,7 +220,13 @@ def writePaymentsToSheet(sheet, videos, userIdsToWork, usersById, cnyUserIds):
     helper(USD_PAYMENT_CELLS, usdUserIds)
 
 def main():
-    columnTitlesToPay = sys.argv[1:]
+    if not os.path.isfile('./credentials.json'):
+       print('未找到credentials.json') 
+       exit(1)
+    columnTitlesToPay = input('输入列表名称（如：2022-11）支持同时输入多个,以逗号隔开(如: 2022-11,2022-12).如此做会生成一个包含多个月的表：')
+    columnTitlesToPay = columnTitlesToPay.split(',')
+    print(f'识别到以下列表名称: {", ".join(columnTitlesToPay)}, 按回车键继续,按Ctrl + C退出')
+    input()
     print('getting user ids')
     cnyUserIds = getCNYUserIds()
     print('getting videos')

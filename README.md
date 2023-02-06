@@ -42,7 +42,7 @@ Your credentials.json should look like
 
 3. Run `pip install -r pip-requirements.txt` in terminal 
 
-4. Run `python nixiePay.py [Column names to calculate, seperated by space]`. For
+4. Run `python nixiePay.py`. For
    example, `python nixiePay.py 2020-10 2020-09`.
 
 5. Wait till finish
